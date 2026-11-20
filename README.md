@@ -1,6 +1,6 @@
 # 科研文档智能问答平台
 
-基于 **LangGraph ReAct Agent + 混合检索（稠密 + BM25 → RRF → Reranker）** 的学术文献问答系统。
+基于 **LangGraph Agent + 混合检索（稠密 + BM25 → RRF → Reranker）** 的学术文献问答系统。
 提供浏览器操作平台（上传文档→解析→向量化入库、流式对话、检索调试、记忆管理）与命令行入口。
 
 模型层（LLM / Embedding / Reranker）统一走阿里云百炼，只需一个 `DASHSCOPE_API_KEY`。
@@ -8,7 +8,7 @@
 ## 功能
 
 - **文档入库**：上传或扫描 `dataset/` 目录，自动解析（PDF/Word/PPT → Markdown）、清洗、提取元数据、结构感知分块，写入 Postgres + Milvus + BM25。
-- **流式对话**：LangGraph ReAct Agent，逐 token 输出，展示工具调用与节点轨迹；强制引用来源 `[n]`，降低幻觉。
+- **流式对话**：LangGraph Agent，逐 token 输出，展示工具调用与节点轨迹；强制引用来源 `[n]`，降低幻觉。
 - **混合检索**：稠密检索（DashScope Embedding + Milvus）+ 关键词检索（BM25，jieba 分词），RRF 倒数排名融合后 Reranker 重排，返回 top5 父文档。
 - **三层记忆**：短期窗口（最近 20 条消息）、长期摘要（跨会话，Postgres）、永久画像（显式"记住"或自动抽取）。
 - **健壮性**：单轮 120s 超时、`recursion_limit=15`、相同工具+参数连续 3 次注入系统干预；Milvus 连接失败自动重连并尝试拉起容器。
@@ -24,7 +24,7 @@
         ┌───────────────────────────────────────────┼──────────────────────────┐
         │                                           │                          │
    agent.py                                     ingest.py            hybrid_retriever.py
-   LangGraph ReAct + 三层记忆                   解析→清洗→元数据→分块      稠密+BM25→RRF→Reranker
+   LangGraph + 三层记忆                   解析→清洗→元数据→分块      稠密+BM25→RRF→Reranker
         │                                           │                          │
         │                                     ┌─────┴─────┐              ┌─────┼─────┐
         └─ search_documents 工具 ─────────────┤document_parser│         │     │     │
@@ -206,4 +206,4 @@ git push -u origin main
 - **检索不到表格数据**：确认文档解析产出为 HTML 表格（MinerU 主路径），系统会转纯文本并按行切分。
 - **免费额度耗尽**：到百炼控制台充值或关闭「仅使用免费额度」，不影响已入库数据。
 - **回答没有出处 `[n]` / 参考文献**：出处只来自 `search_documents` 的返回（含 `[n] (来源:文件名)`）加 System Prompt 的引用约束。若该轮没调检索工具（模型判定"不必检索"而直接凭记忆作答），就不会有出处。System Prompt 已强制"知识性提问默认先检索、命中结果必须标注引用并列参考文献"；若仍偶发，多为所用主模型指令遵循能力偏弱（如 flash 档或切换过的其它模型），可在「设置 → 模型设置」换用指令遵循更好的模型，并在对话轨迹里确认该轮是否调用了 `search_documents`。
-- **不需要天气/时间却调用了 get_air_quality / get_current_time**：这两个是示例工具，System Prompt 与工具描述均已声明"仅当用户明确询问时调用"。若仍被误调，同样属于模型侧工具选择问题，建议更换主模型；不需要这两个能力时也可从 `tools.py` 末尾的 `TOOLS` 列表中移除。
+
